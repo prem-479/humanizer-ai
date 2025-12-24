@@ -1,0 +1,4 @@
+project_id = "qqqqxfbxrxztikanbwro"
+
+[functions.humanize]
+verify_jwt = false
