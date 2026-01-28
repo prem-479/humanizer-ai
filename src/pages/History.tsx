@@ -2,59 +2,36 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { 
-  Loader2, 
-  Trash2, 
-  Copy, 
-  Clock, 
+import {
+  Loader2,
+  Trash2,
+  Copy,
+  Clock,
   ChevronDown,
   ChevronUp,
-  FileText 
+  FileText
 } from 'lucide-react';
+import { Footer } from '@/components/Footer';
+import { CookieConsent } from '@/components/CookieConsent';
 import { format } from 'date-fns';
-
-interface HistoryItem {
-  id: string;
-  original_text: string;
-  humanized_text: string;
-  tone: string;
-  intensity: number;
-  ai_score: number | null;
-  created_at: string;
-}
+import { getCleanHistory, deleteFromHistory, type HistoryItem } from '@/lib/history';
 
 export default function HistoryPage() {
-  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  
+
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/auth');
-      return;
-    }
+    fetchHistory();
+  }, []);
 
-    if (user) {
-      fetchHistory();
-    }
-  }, [user, authLoading, navigate]);
-
-  const fetchHistory = async () => {
+  const fetchHistory = () => {
     try {
-      const { data, error } = await supabase
-        .from('humanization_history')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-      setHistory(data || []);
+      const data = getCleanHistory();
+      setHistory(data);
     } catch (error) {
       console.error('Failed to fetch history:', error);
       toast.error('Failed to load history');
@@ -63,16 +40,10 @@ export default function HistoryPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     try {
-      const { error } = await supabase
-        .from('humanization_history')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      
-      setHistory((prev) => prev.filter((item) => item.id !== id));
+      const updatedHistory = deleteFromHistory(id);
+      setHistory(updatedHistory);
       toast.success('Deleted successfully');
     } catch (error) {
       console.error('Failed to delete:', error);
@@ -96,9 +67,9 @@ export default function HistoryPage() {
     return 'text-orange-500';
   };
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -107,7 +78,7 @@ export default function HistoryPage() {
   return (
     <div className="min-h-screen bg-gradient-hero">
       <Header />
-      
+
       <main className="container mx-auto px-4 pt-24 pb-12">
         <div className="mx-auto max-w-4xl">
           {/* Title */}
@@ -138,7 +109,7 @@ export default function HistoryPage() {
             <div className="space-y-4">
               {history.map((item) => {
                 const isExpanded = expandedId === item.id;
-                
+
                 return (
                   <div
                     key={item.id}
@@ -169,7 +140,7 @@ export default function HistoryPage() {
                             <span>{item.intensity}% intensity</span>
                             {item.ai_score !== null && (
                               <span className={getScoreColor(item.ai_score)}>
-                                {item.ai_score}% AI
+                                {item.ai_score}% Hum
                               </span>
                             )}
                           </div>
@@ -253,6 +224,8 @@ export default function HistoryPage() {
             </div>
           )}
         </div>
+        <Footer />
+        <CookieConsent />
       </main>
     </div>
   );

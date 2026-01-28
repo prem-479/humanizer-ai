@@ -1,6 +1,7 @@
 import { useState, useRef, ChangeEvent, DragEvent } from 'react';
 import { Upload, Clipboard, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PrivacySeal } from '@/components/PrivacySeal';
 import { toast } from 'sonner';
 
 interface TextInputProps {
@@ -45,7 +46,7 @@ export function TextInput({ value, onChange, disabled, maxLength = 10000 }: Text
   const handleDrop = (e: DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     const file = e.dataTransfer.files[0];
     if (file) handleFileUpload(file);
   };
@@ -103,9 +104,8 @@ export function TextInput({ value, onChange, disabled, maxLength = 10000 }: Text
       </div>
 
       <div
-        className={`relative transition-all duration-200 ${
-          isDragging ? 'scale-[1.01]' : ''
-        }`}
+        className={`secure-input-wrapper relative transition-all duration-200 glass-card border-0 ${isDragging ? 'scale-[1.01]' : ''
+          }`}
         onDragOver={(e) => {
           e.preventDefault();
           setIsDragging(true);
@@ -118,10 +118,13 @@ export function TextInput({ value, onChange, disabled, maxLength = 10000 }: Text
           onChange={(e) => onChange(e.target.value.slice(0, maxLength))}
           disabled={disabled}
           placeholder="Paste or type your AI-generated text here..."
-          className={`min-h-[240px] w-full resize-none rounded-lg border bg-card p-4 font-mono text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200 ${
-            isDragging ? 'border-primary ring-2 ring-primary/20' : 'border-input'
-          } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`min-h-[240px] w-full resize-none rounded-xl border bg-card p-6 pr-6 font-mono text-base leading-relaxed placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200 ${isDragging ? 'border-primary ring-2 ring-primary/20' : 'border-input'
+            } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         />
+
+        <div className="absolute top-4 right-4">
+          <PrivacySeal />
+        </div>
 
         {isDragging && (
           <div className="absolute inset-0 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/5 backdrop-blur-sm">

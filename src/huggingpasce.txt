@@ -1,0 +1,567 @@
+import torch import torch.nn as nn from torchvision import models,
+transforms from PIL import Image import gradio as gr #===============================# 1. SETUP #===============================DEVICE=torch.device("cuda" if torch.cuda.is_available() else "cpu") MODEL_PATH="final_eye_disease_model.pth"
+
+IMG_SIZE=224 #===============================# 2. LOAD MODEL #===============================def load_model(): print(f"Loading model on {DEVICE}...") try: model=models.resnet50(weights=None) model.fc=nn.Sequential(nn.Linear(model.fc.in_features, 256),
+    nn.ReLU(),
+    nn.Dropout(0.5),
+    nn.Linear(256, 5)) # Load weights checkpoint=torch.load(MODEL_PATH, map_location=DEVICE, weights_only=False) model.load_state_dict(checkpoint['model_state_dict']) # EXTRACT CLASSES SAFELY raw_classes=checkpoint.get('class_names', []) # If class_names is a Dictionary {
+    'cataract': 0
+}
+
+,
+reverse it to {
+    0: 'cataract'
+}
+
+if isinstance(raw_classes, dict): class_names= {
+    v: k for k, v in raw_classes.items()
+}
+
+# Convert to list sorted by index sorted_names=[class_names[i] for i in range(len(class_names))] class_names=sorted_names else: class_names=raw_classes print(f"✅ Loaded Classes: {class_names}") model.to(DEVICE) model.eval() return model,
+class_names except Exception as e: print(f"❌ Error loading model: {e}") return None,
+["Error Loading Classes"] model,
+class_names=load_model() #===============================# 3. PREDICTION #===============================transform=transforms.Compose([ transforms.Resize((IMG_SIZE, IMG_SIZE)),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])]) def predict_eye_disease(img): if img is None: return None,
+"Please upload an image."
+
+try: # Preprocess img_t=transform(img.convert('RGB')) batch_t=torch.unsqueeze(img_t, 0).to(DEVICE) # Infer with torch.no_grad(): out=model(batch_t) probs=torch.nn.functional.softmax(out, dim=1)[0] # --- GENERATE DETAILED REPORT --- # Get all probabilities scores=[] for i,
+prob in enumerate(probs): name=class_names[i] if i < len(class_names) else f"Class {i}"
+score=prob.item() * 100 scores.append((name, score)) # Sort by highest confidence scores.sort(key=lambda x: x[1], reverse=True) top_name,
+top_score=scores[0] # Create text report details="\n" .join([f"{name}: {score:.2f}%" for name, score in scores]) result_text=("🔍 DIAGNOSTIC RESULTS\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    f"🏆 TOP PREDICTION: {top_name}\n"
+    f"📊 CONFIDENCE: {top_score:.2f}%\n\n"
+    "📈 FULL BREAKDOWN:\n"
+    f"{details}\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    "Note: If the prediction is wrong, check if the labels in 'FULL BREAKDOWN' match your expected classes."
+) return img,
+result_text except Exception as e: return img,
+f"Error: {str(e)}"
+#===============================# Enhanced Modern Medical CSS ✨ #===============================custom_css="" "
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+:root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --secondary: #8b5cf6;
+    --accent: #ec4899;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --dark: #0f172a;
+    --dark-light: #1e293b;
+    --glass: rgba(255, 255, 255, 0.05);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Animated gradient background */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background:
+        radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.1) 0%, transparent 60%);
+    animation: gradientShift 15s ease infinite;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes gradientShift {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: scale(1.1);
+    }
+}
+
+/* Floating particles */
+body::after {
+    content: '';
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background-image:
+        radial-gradient(2px 2px at 20% 30%, rgba(255, 255, 255, 0.3), transparent),
+        radial-gradient(2px 2px at 60% 70%, rgba(99, 102, 241, 0.4), transparent),
+        radial-gradient(1px 1px at 50% 50%, rgba(139, 92, 246, 0.3), transparent),
+        radial-gradient(2px 2px at 80% 10%, rgba(236, 72, 153, 0.3), transparent),
+        radial-gradient(1px 1px at 90% 60%, rgba(255, 255, 255, 0.2), transparent);
+    background-size: 200% 200%;
+    animation: particles 20s linear infinite;
+    pointer-events: none;
+    z-index: 1;
+}
+
+@keyframes particles {
+    0% {
+        transform: translateY(0);
+    }
+
+    100% {
+        transform: translateY(-100px);
+    }
+}
+
+.gradio-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 60px 40px 120px;
+    position: relative;
+    z-index: 2;
+}
+
+/* Header with icon */
+h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 4.5rem !important;
+    font-weight: 800 !important;
+    background: linear-gradient(135deg, #ffffff 0%, #6366f1 50%, #8b5cf6 100%);
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    text-align: center;
+    margin: 80px 0 20px !important;
+    letter-spacing: -0.03em !important;
+    line-height: 1.1 !important;
+    position: relative;
+    animation: fadeInUp 0.8s ease-out;
+    filter: drop-shadow(0 4px 20px rgba(99, 102, 241, 0.5));
+}
+
+h1::before {
+    content: '👁️';
+    position: absolute;
+    top: -70px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 4rem;
+    animation: float 3s ease-in-out infinite;
+    filter: drop-shadow(0 10px 30px rgba(99, 102, 241, 0.6));
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateX(-50%) translateY(0);
+    }
+
+    50% {
+        transform: translateX(-50%) translateY(-15px);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Badge */
+h1::after {
+    content: 'AI-POWERED DIAGNOSTICS';
+    position: absolute;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    padding: 8px 24px;
+    border-radius: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    letter-spacing: 0.12em;
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.4);
+    animation: slideDown 1s ease-out 0.3s backwards;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+p {
+    color: rgba(255, 255, 255, 0.85) !important;
+    font-size: 1.2rem !important;
+    text-align: center;
+    font-weight: 400 !important;
+    line-height: 1.7 !important;
+    max-width: 800px;
+    margin: 0 auto 60px !important;
+    animation: fadeIn 1s ease-out 0.5s backwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Main cards */
+.gr-form {
+    background: rgba(30, 41, 59, 0.5) !important;
+    border: 1px solid rgba(99, 102, 241, 0.2) !important;
+    border-radius: 24px !important;
+    padding: 40px !important;
+    backdrop-filter: blur(20px) saturate(180%);
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.3),
+        0 0 1px rgba(99, 102, 241, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    animation: slideUp 0.8s ease-out backwards;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.gr-form::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(99, 102, 241, 0.8),
+            rgba(139, 92, 246, 0.8),
+            transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.gr-form:hover {
+    transform: translateY(-4px);
+    border-color: rgba(99, 102, 241, 0.4) !important;
+    box-shadow:
+        0 30px 80px rgba(0, 0, 0, 0.4),
+        0 0 40px rgba(99, 102, 241, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.gr-form:hover::before {
+    opacity: 1;
+}
+
+/* Status indicator */
+.gr-form::after {
+    content: '● ONLINE';
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--success);
+    background: rgba(16, 185, 129, 0.1);
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    letter-spacing: 0.1em;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Labels */
+label {
+    color: rgba(255, 255, 255, 0.95) !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    margin-bottom: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px;
+    letter-spacing: 0.02em !important;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+}
+
+label::before {
+    content: '◆';
+    color: var(--primary);
+    font-size: 0.8rem;
+    transition: all 0.3s ease;
+}
+
+label:hover {
+    color: var(--primary) !important;
+    transform: translateX(4px);
+}
+
+label:hover::before {
+    transform: scale(1.2) rotate(45deg);
+}
+
+/* Upload area */
+.gr-image {
+    border-radius: 20px !important;
+    border: 2px dashed rgba(99, 102, 241, 0.3) !important;
+    background: rgba(30, 41, 59, 0.3) !important;
+    overflow: hidden;
+    transition: all 0.4s ease;
+    min-height: 500px;
+    position: relative;
+    box-shadow: inset 0 0 40px rgba(99, 102, 241, 0.1);
+}
+
+.gr-image:hover {
+    border-color: rgba(99, 102, 241, 0.6) !important;
+    background: rgba(30, 41, 59, 0.5) !important;
+    transform: scale(1.01);
+    box-shadow:
+        0 0 40px rgba(99, 102, 241, 0.3),
+        inset 0 0 60px rgba(99, 102, 241, 0.15);
+}
+
+img {
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+img:hover {
+    transform: scale(1.02);
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4);
+}
+
+/* Results textbox */
+.gr-textbox {
+    position: relative;
+    animation: slideUp 0.8s ease-out 0.2s backwards;
+}
+
+.gr-textbox textarea {
+    background: rgba(30, 41, 59, 0.6) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(99, 102, 241, 0.3) !important;
+    border-radius: 20px !important;
+    padding: 30px !important;
+    font-size: 1.05rem !important;
+    line-height: 2 !important;
+    transition: all 0.4s ease;
+    font-family: 'Inter', sans-serif !important;
+    min-height: 400px !important;
+    box-shadow:
+        0 20px 50px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    font-weight: 400;
+}
+
+.gr-textbox textarea:focus {
+    background: rgba(30, 41, 59, 0.8) !important;
+    border-color: rgba(99, 102, 241, 0.6) !important;
+    outline: none !important;
+    box-shadow:
+        0 25px 60px rgba(0, 0, 0, 0.4),
+        0 0 40px rgba(99, 102, 241, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 0 0 4px rgba(99, 102, 241, 0.1);
+    transform: translateY(-2px);
+}
+
+.gr-textbox textarea::placeholder {
+    color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Button */
+.gr-button {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 18px 48px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+        0 12px 35px rgba(99, 102, 241, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.gr-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.gr-button:hover::before {
+    left: 100%;
+}
+
+.gr-button:hover {
+    transform: translateY(-3px);
+    box-shadow:
+        0 18px 45px rgba(99, 102, 241, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        0 0 40px rgba(99, 102, 241, 0.4);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.gr-button:active {
+    transform: translateY(-1px);
+}
+
+/* Footer */
+.footer-info {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+    text-align: center;
+    padding: 14px 32px;
+    background: rgba(30, 41, 59, 0.8);
+    border-radius: 40px;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    animation: slideUp 1s ease-out 1.2s backwards;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.3);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--primary), var(--secondary));
+    border-radius: 10px;
+    border: 2px solid rgba(15, 23, 42, 0.5);
+    transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--secondary), var(--accent));
+}
+
+/* Row spacing */
+.gr-row {
+    gap: 30px;
+}
+
+.gr-column {
+    gap: 30px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    h1 {
+        font-size: 3rem !important;
+    }
+
+    .gradio-container {
+        padding: 40px 20px 100px;
+    }
+}
+
+@media (max-width: 768px) {
+    h1 {
+        font-size: 2.5rem !important;
+    }
+
+    h1::before {
+        font-size: 3rem;
+        top: -60px;
+    }
+}
+
+"" "
+
+#===============================# Gradio Interface #===============================iface=gr.Interface(fn=predict_eye_disease,
+    inputs=gr.Image(type="pil", label="Upload Fundus Image"),
+    outputs=[ gr.Image(type="pil", label="Image Preview"),
+    gr.Textbox(label="Analysis Results",
+        lines=10,
+        placeholder="DIAGNOSTIC RESULTS\nWaiting for image...",
+        show_copy_button=True)],
+    title="Eye Disease Detection 🩺",
+    description="AI-powered retinal disease detection using Fine-Tuned ResNet50.",
+    css=custom_css,
+    flagging_mode="never"
+) if __name__=="__main__": iface.launch()
